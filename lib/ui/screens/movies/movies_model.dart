@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:injectable/injectable.dart';
 import 'package:themoviedb_app/bases/base_model.dart';
 import 'package:themoviedb_app/data/enum.dart';
@@ -14,7 +16,6 @@ class MoviesModel extends BaseModel {
   int page = 1;
 
   bool isSearching = false;
-  bool isRefresh = false;
   bool isLoadMore = false;
 
   MoviesModel(this._repository);
@@ -26,7 +27,6 @@ class MoviesModel extends BaseModel {
   Future<void> executeLoadData({bool refresh = false}) async {
     if (refresh) {
       page = 1;
-      isRefresh = false;
     }
 
     await _loadListItems();
@@ -52,12 +52,13 @@ class MoviesModel extends BaseModel {
       }
     }
 
+    if (isLoadMore) {
+      movies.addAll(remoteItems);
+    } else {
+      movies = remoteItems;
+    }
+
     if (remoteItems.isNotEmpty) {
-      if (isLoadMore) {
-        movies.addAll(remoteItems);
-      } else {
-        movies = remoteItems;
-      }
       page++;
     }
   }

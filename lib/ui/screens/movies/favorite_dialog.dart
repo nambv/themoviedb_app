@@ -24,9 +24,16 @@ class _FavoriteDialogState extends State<FavoriteDialog> {
           Align(
             alignment: Alignment.topRight,
             child: Material(
-              child: IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: () => Navigator.pop(context),
+              color: Colors.transparent,
+              child: Ink(
+                decoration: const ShapeDecoration(
+                  shape: CircleBorder(),
+                  color: Colors.white12,
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.close, color: Colors.yellow),
+                  onPressed: () => Navigator.pop(context),
+                ),
               ),
             ),
           ),
@@ -44,6 +51,7 @@ class _FavoriteDialogState extends State<FavoriteDialog> {
                       enlargeCenterPage: true,
                       autoPlay: false,
                       viewportFraction: 0.72,
+                      enableInfiniteScroll: false,
                       onPageChanged: (index, reason) {
                         setState(() => _current = index);
                       },
@@ -63,12 +71,8 @@ class _FavoriteDialogState extends State<FavoriteDialog> {
                             vertical: 8.0, horizontal: 4.0),
                         decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color:
-                                (Theme.of(context).brightness == Brightness.dark
-                                        ? Colors.white
-                                        : Colors.black)
-                                    .withOpacity(
-                                        _current == entry.key ? 0.9 : 0.4)),
+                            color: Colors.yellow.withOpacity(
+                                _current == entry.key ? 0.9 : 0.4)),
                       );
                     }).toList(),
                   ),

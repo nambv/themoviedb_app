@@ -1,10 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:themoviedb_app/bases/base_state.dart';
 import 'package:themoviedb_app/ui/screens/movies/favorite_dialog.dart';
 import 'package:themoviedb_app/ui/screens/movies/movies_model.dart';
 import 'package:themoviedb_app/ui/screens/movies/widgets.dart';
-import 'package:themoviedb_app/ui/widgets/loading_widget.dart';
 
 class MoviesScreen extends StatefulWidget {
   const MoviesScreen({super.key});
@@ -16,6 +17,7 @@ class MoviesScreen extends StatefulWidget {
 class _MoviesScreenState extends BaseState<MoviesModel, MoviesScreen> {
   late TextEditingController _searchController;
   late ScrollController _scrollController;
+  Timer? _debounce;
 
   @override
   void initState() {
@@ -35,11 +37,24 @@ class _MoviesScreenState extends BaseState<MoviesModel, MoviesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Movie DB App"),
+        title: const Text(
+          "Movie DB App",
+          style: TextStyle(color: Colors.yellow),
+        ),
       ),
       body: super.build(context),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
+          final favoriteMovies = model.favoriteMovies;
+          if (favoriteMovies.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('You haven\'t favorite any movie yet'),
+              ),
+            );
+            return;
+          }
+
           showGeneralDialog(
             context: context,
             barrierColor: Colors.black12.withOpacity(0.6),
@@ -47,7 +62,7 @@ class _MoviesScreenState extends BaseState<MoviesModel, MoviesScreen> {
             barrierDismissible: false,
             transitionDuration: const Duration(milliseconds: 400),
             pageBuilder: (context, __, ___) {
-              return FavoriteDialog(movies: model.favoriteMovies);
+              return FavoriteDialog(movies: favoriteMovies);
             },
           );
         },
@@ -59,7 +74,22 @@ class _MoviesScreenState extends BaseState<MoviesModel, MoviesScreen> {
   }
 
   @override
-  buildLoadingView() => const MovieDbLoadingWidget();
+  buildLoadingView() {
+    return Column(
+      children: [
+        _searchTextField,
+        Expanded(
+          child: ListView.separated(
+            itemCount: 10,
+            shrinkWrap: true,
+            itemBuilder: (_, __) => const MovieItemShimmer(),
+            padding: const EdgeInsets.all(16),
+            separatorBuilder: (_, __) => const Gap(16),
+          ),
+        ),
+      ],
+    );
+  }
 
   @override
   buildLoadedView(BuildContext context, MoviesModel model) {
@@ -67,54 +97,79 @@ class _MoviesScreenState extends BaseState<MoviesModel, MoviesScreen> {
 
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-          child: TextField(
-            controller: _searchController,
-            textInputAction: TextInputAction.search,
-            onChanged: (text) {
-              if (text == "") {
-                _onClearSearchText();
-              }
-            },
-            onSubmitted: _onSearchExecute,
-            decoration: InputDecoration(
-              hintText: "Search by title here",
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: _searchController.text.isEmpty
-                  ? null
-                  : IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => _onClearSearchText(),
-                    ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12.0),
-              ),
-              contentPadding: const EdgeInsets.all(12),
-              filled: true,
-            ),
-          ),
-        ),
+        _searchTextField,
         Expanded(
-          child: RefreshIndicator(
-            onRefresh: () async {
-              model.loadData(refresh: true);
-            },
-            child: ListView.separated(
-              shrinkWrap: true,
-              controller: _scrollController,
-              padding: const EdgeInsets.all(16),
-              separatorBuilder: (_, __) => const Gap(16),
-              itemCount: movies.length,
-              itemBuilder: (_, index) {
-                return MovieItemListView(movie: movies[index]);
-              },
-            ),
-          ),
+          child: movies.isEmpty
+              ? _buildEmptyView()
+              : RefreshIndicator(
+                  onRefresh: () async {
+                    model.loadData(refresh: true);
+                  },
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    controller: _scrollController,
+                    padding: const EdgeInsets.all(16),
+                    separatorBuilder: (_, __) => const Gap(16),
+                    itemCount: movies.length,
+                    itemBuilder: (_, index) {
+                      return MovieItemListView(movie: movies[index]);
+                    },
+                  ),
+                ),
         ),
       ],
     );
   }
+
+  _buildEmptyView() {
+    return const Center(
+      child: Text("No data to display"),
+    );
+  }
+
+  Widget get _searchTextField => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+        child: TextField(
+          controller: _searchController,
+          cursorColor: Colors.yellow,
+          textInputAction: TextInputAction.search,
+          onChanged: (text) {
+            if (_debounce?.isActive ?? false) _debounce?.cancel();
+            _debounce = Timer(const Duration(milliseconds: 500), () {
+              if (text == "") {
+                _onClearSearchText();
+              } else {
+                _onSearchExecute(text);
+              }
+            });
+          },
+          decoration: InputDecoration(
+            hintText: "Search by title here",
+            hintStyle: TextStyle(color: Colors.yellow[200]),
+            prefixIcon: const Icon(Icons.search, color: Colors.yellow),
+            suffixIcon: _searchController.text.isEmpty
+                ? null
+                : IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => _onClearSearchText(),
+                  ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12.0),
+              borderSide: const BorderSide(color: Colors.yellow),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderSide: const BorderSide(color: Colors.yellow),
+              borderRadius: BorderRadius.circular(12.0),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderSide: const BorderSide(color: Colors.yellow),
+              borderRadius: BorderRadius.circular(12.0),
+            ),
+            contentPadding: const EdgeInsets.all(12),
+            filled: true,
+          ),
+        ),
+      );
 
   _onClearSearchText() {
     _searchController.text = "";
@@ -132,6 +187,7 @@ class _MoviesScreenState extends BaseState<MoviesModel, MoviesScreen> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchController.dispose();
     _scrollController.dispose();
     super.dispose();
